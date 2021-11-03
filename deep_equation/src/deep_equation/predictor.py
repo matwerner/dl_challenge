@@ -4,7 +4,10 @@ Predictor interfaces for the Deep Learning challenge.
 
 from typing import List
 import numpy as np
+import torch
 
+from .helper import ImagePreprocessing, DeepEquationOutputHelper
+from .model import DeepEquationNet
 
 class BaseNet:
     """
@@ -64,7 +67,7 @@ class RandomModel(BaseNet):
     ) -> List[float]:
 
         predictions = []
-        for image_a, image_b, operator in zip(images_a, images_b, operators):            
+        for image_a, image_b, operator in zip(images_a, images_b, operators):
             random_prediction = np.random.uniform(-10, 100, size=1)[0]
             predictions.append(random_prediction)
         
@@ -78,6 +81,11 @@ class StudentModel(BaseNet):
         predict: method that makes batch predictions.
     """
 
+    def __init__(self) -> None:
+        super().__init__()
+        self.load_model('resources/deep_equation_net.pt')
+        self.operator_map = {'+': 0, '-': 1, '*': 2, '/': 3}
+
     # TODO
     def load_model(self, model_path: str):
         """
@@ -85,7 +93,9 @@ class StudentModel(BaseNet):
         TODO: update the default `model_path` 
               to be the correct path for your best model!
         """
-        pass
+        self.model = DeepEquationNet()
+        self.model.load_state_dict(torch.load(model_path))
+        self.model.eval()        
     
     # TODO:
     def predict(
@@ -95,6 +105,27 @@ class StudentModel(BaseNet):
         """Implement this method to perform predictions 
         given a list of images_a, images_b and operators.
         """
+        temp_model = self.model.to(device)
         predictions = []
-        
+        for image_a, image_b, operator in zip(images_a, images_b, operators):
+            op = operator
+
+            # Preprocessing
+            image_a = ImagePreprocessing.preprocess_rgb_image(image_a).unsqueeze(0).to(device)
+            image_b = ImagePreprocessing.preprocess_rgb_image(image_b).unsqueeze(0).to(device)
+            operator = self.operator_map[operator]
+            operator = torch.tensor([operator]).unsqueeze(0).to(device)
+
+            # Run model
+            output_a, output_b, output_eq = temp_model(image_a, image_b, operator)
+
+            # Posprocessing
+            output_a = output_a.detach().numpy().argmax()
+            output_b = output_b.detach().numpy().argmax()
+            output_eq = output_eq.detach().numpy().argmax()
+            output_eq = DeepEquationOutputHelper.class_to_value(output_eq)
+
+            predictions.append(output_eq)
+            # print(output_a, output_b, op, output_eq)
+
         return predictions
