@@ -4,6 +4,7 @@ Predictor interfaces for the Deep Learning challenge.
 
 from typing import List
 import numpy as np
+import os
 import torch
 
 from .helper import ImagePreprocessing, DeepEquationOutputHelper
@@ -83,7 +84,9 @@ class StudentModel(BaseNet):
 
     def __init__(self) -> None:
         super().__init__()
-        self.load_model('resources/deep_equation_net.pt')
+        source_dir = os.path.abspath(os.path.dirname(__file__))
+        resource_dir = source_dir + '/../../resources'
+        self.load_model(resource_dir + '/deep_equation_net.pt')
         self.operator_map = {'+': 0, '-': 1, '*': 2, '/': 3}
 
     # TODO
