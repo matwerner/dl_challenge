@@ -5,6 +5,7 @@
 notebook/
 mnist_example/
 MNIST/
+digits/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -118,8 +118,8 @@ def main():
     valid_size = len(train_dataset) - train_size
     train_dataset, valid_dataset = torch.utils.data.random_split(train_dataset, [train_size, valid_size])
 
-    train_dataset = DeepEquationDataset(train_dataset, int(3 * len(train_dataset)))
-    valid_dataset = DeepEquationDataset(valid_dataset, int(3 * len(valid_dataset)))    
+    train_dataset = DeepEquationDataset(train_dataset, int(6 * len(train_dataset)))
+    valid_dataset = DeepEquationDataset(valid_dataset, int(6 * len(valid_dataset)))    
 
     train_loader = torch.utils.data.DataLoader(train_dataset,**train_kwargs)
     valid_loader = torch.utils.data.DataLoader(valid_dataset, **test_kwargs)    

@@ -2,6 +2,7 @@ import cv2
 import math
 import numpy as np
 import torch
+import random
 from PIL import Image
 from scipy import ndimage
 
@@ -27,29 +28,48 @@ class ImagePreprocessing:
         shifted = cv2.warpAffine(img,M,(cols,rows))
         return shifted
 
+    # Reference
+    # https://stackoverflow.com/questions/22937589/how-to-add-noise-gaussian-salt-and-pepper-etc-to-image-in-python-with-opencv
     @staticmethod
-    def preprocess_mnist_image(pixels):
-        pixels = 255 * pixels.cpu().detach().numpy()
-        image = Image.fromarray(pixels.squeeze(0))
-        return ImagePreprocessing.preprocess_rgb_image(image)
+    def noise(img,prob):    
+        '''
+        Add salt and pepper noise to image
+        prob: Probability of the noise
+        '''
+        output = np.zeros(img.shape)
+        thres = 1 - prob 
+        for i in range(img.shape[0]):
+            for j in range(img.shape[1]):
+                rdn = random.random()
+                if rdn < prob:
+                    output[i][j] = 0
+                elif rdn > thres:
+                    output[i][j] = 255
+                else:
+                    output[i][j] = img[i][j]
+        return output
 
     @staticmethod
-    def preprocess_rgb_image(image, background_threshold=128):
+    def preprocess_mnist_image(pixels, add_noise=True):
+        pixels = 255 * pixels.cpu().detach().numpy()
+        image = Image.fromarray(pixels.squeeze(0))
+        return ImagePreprocessing.preprocess_rgb_image(image, add_noise=add_noise)
+
+    @staticmethod
+    def preprocess_rgb_image(image, background_threshold=128, add_noise=False):
         # Greyscale
         image = image.convert('L')
         gray = np.array(image)
 
-        # Convert background to black
-        value = np.median(np.array(image))
-
-        # rescale it
+        # Rescale and convert background to black if needed
+        value = np.median(np.array(image))        
         if value >= background_threshold:
             gray = cv2.resize(255 - gray, (28, 28))
         else:
             gray = cv2.resize(gray, (28, 28))
         # better black and white version
         value = np.median(np.array(gray))
-        (_, gray) = cv2.threshold(gray, value, 255, cv2.THRESH_BINARY)
+        (_, gray) = cv2.threshold(gray, value, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
 
         while np.sum(gray[0]) == 0:
             gray = gray[1:]
@@ -62,6 +82,9 @@ class ImagePreprocessing:
 
         while np.sum(gray[:, -1]) == 0:
             gray = np.delete(gray, -1, 1)
+
+        if add_noise:
+            gray = ImagePreprocessing.noise(gray, 0.05)
 
         rows, cols = gray.shape
 
@@ -85,6 +108,10 @@ class ImagePreprocessing:
         shiftx, shifty = ImagePreprocessing.getBestShift(gray)
         shifted = ImagePreprocessing.shift(gray, shiftx, shifty)
         gray = shifted
+
+        # -1 to 1
+        gray = gray / 255.0
+        gray = 2.0 * gray - 1.0
 
         # To tensor
         return torch.tensor(gray, dtype=torch.float32).unsqueeze(0)
@@ -110,11 +137,18 @@ class DeepEquationDataset(torch.utils.data.Dataset):
         super().__init__()
         #self.loader = loader
         self.size = size
-        self.images = [(ImagePreprocessing.preprocess_mnist_image(image), target) 
-                        for image, target in loader]
         self.indices_a = np.random.randint(0, len(loader), size)
         self.indices_b = np.random.randint(0, len(loader), size)
         self.operators = np.random.randint(0, 4, size)
+        """
+        targets_a = [loader[index][1] for index in self.indices_a]
+        targets_b = [loader[index][1] for index in self.indices_b]
+        print(np.bincount(targets_a))
+        print(np.bincount(targets_b))
+        """
+
+        self.images = [(ImagePreprocessing.preprocess_mnist_image(image), target) 
+                        for image, target in loader]                
 
     def __getitem__(self, index):
         image_a, target_a = self.images[self.indices_a[index]]
