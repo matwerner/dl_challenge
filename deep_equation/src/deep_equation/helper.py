@@ -69,7 +69,7 @@ class ImagePreprocessing:
             gray = cv2.resize(gray, (28, 28))
         # better black and white version
         value = np.median(np.array(gray))
-        (_, gray) = cv2.threshold(gray, value, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+        (_, gray) = cv2.threshold(gray, value, 255, cv2.THRESH_BINARY)
 
         while np.sum(gray[0]) == 0:
             gray = gray[1:]
